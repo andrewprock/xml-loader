@@ -62,27 +62,28 @@ public class App
         return "ERROR"; // unreachable
     }
 
-    // Using deprecated Mongo interface, not the 2.10.0 MongoClient interface.
-    public static void storeJson(String json, String host, int port, String database, String inputCollection) {
-        try {
-            Mongo mongo = new Mongo(host, port);
-            DB db = mongo.getDB(database);
-            DBCollection collection = db.getCollection(inputCollection);
+    // One database connection per App
+    //
+    // NOTE: using deprecated Mongo interface, not the 2.10.0 MongoClient
+    // interface.
+    private Mongo mongo;
+    private DB db;
+    private DBCollection collection;
 
-            // just test our connectivity
-            DBObject oneObje = collection.findOne();
-            String str = oneObje.toString();
-            System.out.println(str);
+    public void storeJson(String json) {
+        DBObject parsedObj = (DBObject)JSON.parse(json);
+        collection.insert(parsedObj);
+    }
 
-            // tranform json for insertion
-            DBObject parsedObj = (DBObject)JSON.parse(json);
-            collection.insert(parsedObj);
+    // Retrieve document from mongo based on field/value
+    public String retrieveJson(String field, Object value) {
+        BasicDBObject fields = new BasicDBObject();
+        fields.put(field, value);
 
-
-        } catch (UnknownHostException e) {
-            e.printStackTrace();
-        }
-
+        DBCursor result = collection.find(fields);
+        String document = result.next().toString();
+        System.out.println(document);
+        return document;
     }
 
     // Run the application.
@@ -98,17 +99,23 @@ public class App
             long ONE_MEGABYATE = 1024*1024;
             String xmlInput = readFile(args[0],ONE_MEGABYATE);
             String jsonOutput = xmlToJson(xmlInput);
-            System.out.println(jsonOutput);
-
-            // Now add the json data to the database.
-            storeJson(jsonOutput, "localhost", 27017, "mydb", "testData");
-
+            storeJson(jsonOutput);
         } catch (Exception je) {
             System.out.println(je.toString());
         }
     }
 
+    public App(String host, int port, String database, String inputCollection) {
+        try {
+            mongo = new Mongo(host, port);
+            db = mongo.getDB(database);
+            collection = db.getCollection(inputCollection);
+        } catch (UnknownHostException e) {
+            e.printStackTrace();
+        }
+    }
+
     public static void main(String[] args) throws IOException {
-        new App().run(args);
+        new App("localhost", 27017, "mydb", "testData").run(args);
     }
 }
