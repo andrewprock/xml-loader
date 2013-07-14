@@ -88,7 +88,7 @@ public class App
     // Run the application.
     public void run(String[] args) throws IOException {
         if (args.length != 1) {
-            System.out.println("Usage: java -cp target/game-loader-1.0-SNAPSHOT.jar com.prock.test.App <input xml>");
+            System.out.println("Usage: java -cp target/xml-loader-1.0-SNAPSHOT.jar com.prock.test.App <input xml>");
             System.out.println("");
             System.out.println("The file specified by <input xml> will be transformed to JSON and added to a MongoDB");
             System.exit(-1);
