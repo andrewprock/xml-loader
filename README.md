@@ -17,7 +17,8 @@ Before running the project, mongodb must be installed and running on the
 system.  Once mongodb is installed, no further configuration should be
 required.
 
-To run the project execute:
+The project comes with a sample XML file in the data directory.  To
+use the project to load that file into MongoDB execute:
 
     java -cp target/xml-loader-1.0-SNAPSHOT.jar com.prock.test.App data/test.xml
 
