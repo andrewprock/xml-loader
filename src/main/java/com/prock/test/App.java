@@ -25,12 +25,40 @@ import java.io.IOException;
  */
 public class App 
 {
-    public static int PRETTY_PRINT_INDENT_FACTOR = 4;
+    private static int PRETTY_PRINT_INDENT_FACTOR = 4;
 
-    // Use Java 1.6 for compatibility
-    //
-    // Read the entire file into a String.  Do not read if file is greater
-    // than the given size.
+    private Mongo mongo;
+    private DB db;
+    private DBCollection collection;
+
+    /**
+     * Simple App for inserting xml into mongodb as json.
+     *
+     * We maintain one database connection per invocation of the App.
+     *
+     * NOTE: using deprecated Mongo interface, not the 2.10.0 MongoClient
+     * interface.
+     */
+    public App(String host, int port, String database, String inputCollection) {
+        try {
+            this.mongo = new Mongo(host, port);
+            this.db = mongo.getDB(database);
+            this.collection = db.getCollection(inputCollection);
+        } catch (UnknownHostException ex) {
+            ex.printStackTrace();
+            System.exit(-1);
+        }
+    }
+
+    /**
+     * Read the entire file into a String.  Do not read if file is greater
+     * than the given size.
+     *
+     * @param filenName         file which contains the xml
+     * @param maxSize           maximum number of bytes to read
+     *
+     * Use Java 1.6 for compatibility
+     */
     public static String readFile(String fileName, long maxSize) throws IOException {
         File file = new File(fileName);
         InputStream insputStream = new FileInputStream(file);
@@ -49,44 +77,53 @@ public class App
         return new String(bytes);
     }
 
-    // This is the initial pass at converting XML to JSON.
-    public static String xmlToJson(String inputString) {
-        try {
-            JSONObject xmlJSONObj = XML.toJSONObject(inputString);
-            return xmlJSONObj.toString(PRETTY_PRINT_INDENT_FACTOR);
-        } catch (JSONException je) {
-            System.out.println("Caught JSON exception in xmlToJson:");
-            System.out.println(je.toString());
-            System.exit(-1);
-        }
-        return "ERROR"; // unreachable
+    /**
+     * Convert XML to JSON
+     *
+     * @param inputString       xml imput
+     * @returns                 json output
+     */
+    public static String xmlToJson(String inputString) throws JSONException {
+        JSONObject xmlJSONObj = XML.toJSONObject(inputString);
+        return xmlJSONObj.toString(PRETTY_PRINT_INDENT_FACTOR);
     }
 
-    // One database connection per App
-    //
-    // NOTE: using deprecated Mongo interface, not the 2.10.0 MongoClient
-    // interface.
-    private Mongo mongo;
-    private DB db;
-    private DBCollection collection;
-
-    public void storeJson(String json) {
+    /**
+     * Store a document in MongoDB as a document.
+     *
+     * @param json              document to store
+     *
+     * The document is stored as is, no processsing or structure is added.
+     * No validation is done to ensure that the json is valid.
+     */
+    public void storeDocument(String json) {
         DBObject parsedObj = (DBObject)JSON.parse(json);
-        collection.insert(parsedObj);
+        this.collection.insert(parsedObj);
     }
 
-    // Retrieve document from mongo based on field/value
-    public String retrieveJson(String field, Object value) {
+    /**
+     * Retrieve a document from MondoDB.
+     *
+     * @param field             the field to query
+     * @param value             the value of the field queried
+     *
+     * MongoDB is quried for a docuemnt with the specified field=value.
+     */
+    public String retrieveDocument(String field, Object value) {
         BasicDBObject fields = new BasicDBObject();
         fields.put(field, value);
 
-        DBCursor result = collection.find(fields);
+        DBCursor result = this.collection.find(fields);
         String document = result.next().toString();
         System.out.println(document);
         return document;
     }
 
-    // Run the application.
+    /**
+     * Driver.
+     *
+     * @param args      expected to be the command line arguments
+     */
     public void run(String[] args) throws IOException {
         if (args.length != 1) {
             System.out.println("Usage: java -cp target/xml-loader-1.0-SNAPSHOT.jar com.prock.test.App <input xml>");
@@ -99,22 +136,19 @@ public class App
             long ONE_MEGABYATE = 1024*1024;
             String xmlInput = readFile(args[0],ONE_MEGABYATE);
             String jsonOutput = xmlToJson(xmlInput);
-            storeJson(jsonOutput);
-        } catch (Exception je) {
-            System.out.println(je.toString());
+            storeDocument(jsonOutput);
+        } catch (Exception ex) {
+            System.out.println(ex.toString());
         }
     }
 
-    public App(String host, int port, String database, String inputCollection) {
-        try {
-            mongo = new Mongo(host, port);
-            db = mongo.getDB(database);
-            collection = db.getCollection(inputCollection);
-        } catch (UnknownHostException e) {
-            e.printStackTrace();
-        }
-    }
-
+    /**
+     * Run the project.
+     *
+     * TODO: The database parameters are hard coded here.  In production
+     * environment, there should be a mechanism for specifying them outside
+     * of code.
+     */
     public static void main(String[] args) throws IOException {
         new App("localhost", 27017, "mydb", "testData").run(args);
     }
